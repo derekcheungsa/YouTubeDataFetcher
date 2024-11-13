@@ -97,6 +97,21 @@
                             </tbody>
                         </table>
 
+                        <h3 class="mt-4">Example Response</h3>
+                        <pre class="bg-dark p-3 rounded"><code class="text-light">{
+    "success": true,
+    "video_id": "video_id",
+    "comment_count": 50,
+    "comments": [
+        {
+            "author": "User Name",
+            "text": "Comment text",
+            "likes": 42,
+            "published_at": "2024-01-01T00:00:00Z"
+        }
+    ]
+}</code></pre>
+
                         <h3 class="mt-4">Try It Out</h3>
                         <div class="input-group mb-3">
                             <input type="text" id="commentVideoId" class="form-control" placeholder="Enter YouTube video ID">
@@ -113,10 +128,14 @@
 
                 <div class="mt-4">
                     <h3>Rate Limits</h3>
+                    <p>Both the transcript and comments endpoints are subject to the following rate limits:</p>
                     <ul>
-                        <li>100 requests per day</li>
-                        <li>10 requests per minute</li>
+                        <li>100 requests per day per IP address</li>
+                        <li>10 requests per minute per IP address</li>
                     </ul>
+                    <div class="alert alert-warning">
+                        <strong>Note:</strong> The comments endpoint is also subject to YouTube API quota limits.
+                    </div>
 
                     <h3 class="mt-4">Error Responses</h3>
                     <table class="table table-dark">
@@ -147,6 +166,16 @@
                                 <td>429</td>
                                 <td>Rate limit exceeded</td>
                                 <td><code>{"error": "Rate limit exceeded"}</code></td>
+                            </tr>
+                            <tr>
+                                <td>429</td>
+                                <td>YouTube API quota exceeded</td>
+                                <td><code>{"error": "YouTube API quota exceeded"}</code></td>
+                            </tr>
+                            <tr>
+                                <td>500</td>
+                                <td>Server error</td>
+                                <td><code>{"error": "An unexpected error occurred"}</code></td>
                             </tr>
                         </tbody>
                     </table>
