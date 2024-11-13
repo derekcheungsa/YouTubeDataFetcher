@@ -22,7 +22,9 @@ def get_transcript(video_id):
 def process_transcript(transcript_list, include_timestamps=True):
     if include_timestamps:
         return transcript_list
-    return [{'text': item['text']} for item in transcript_list]
+    # Combine all text segments into a single string when timestamps=false
+    combined_text = " ".join(item['text'] for item in transcript_list)
+    return {"text": combined_text}
 
 def is_valid_video_id(video_id):
     # Basic YouTube video ID validation (11 characters, alphanumeric with some special chars)

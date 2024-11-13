@@ -73,6 +73,7 @@
                     </ul>
 
                     <h3 class="mt-4">Response Format</h3>
+                    <h4>With Timestamps (timestamps=true)</h4>
                     <pre class="bg-dark p-3 rounded"><code class="text-light">{
     "success": true,
     "video_id": "video_id",
@@ -85,6 +86,15 @@
         },
         ...
     ]
+}</code></pre>
+                    <h4 class="mt-3">Without Timestamps (timestamps=false)</h4>
+                    <pre class="bg-dark p-3 rounded"><code class="text-light">{
+    "success": true,
+    "video_id": "video_id",
+    "timestamps_included": false,
+    "transcript": {
+        "text": "Complete transcript text all combined into one string"
+    }
 }</code></pre>
                 </div>
             </div>
