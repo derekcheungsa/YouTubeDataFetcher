@@ -1,11 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     const fetchButton = document.getElementById('fetchTranscript');
     const videoIdInput = document.getElementById('videoId');
+    const timestampsToggle = document.getElementById('includeTimestamps');
     const resultDiv = document.getElementById('result');
     const responseData = document.getElementById('responseData');
 
     fetchButton.addEventListener('click', async function() {
         const videoId = videoIdInput.value.trim();
+        const includeTimestamps = timestampsToggle.checked;
         
         if (!videoId) {
             alert('Please enter a video ID');
@@ -16,7 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchButton.disabled = true;
             fetchButton.innerHTML = 'Loading...';
 
-            const response = await fetch(`/api/transcript/${videoId}`);
+            const url = `/api/transcript/${videoId}?timestamps=${includeTimestamps}`;
+            const response = await fetch(url);
             const data = await response.json();
 
             responseData.textContent = JSON.stringify(data, null, 2);

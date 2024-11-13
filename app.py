@@ -19,6 +19,11 @@ limiter = Limiter(
 def get_transcript(video_id):
     return YouTubeTranscriptApi.get_transcript(video_id)
 
+def process_transcript(transcript_list, include_timestamps=True):
+    if include_timestamps:
+        return transcript_list
+    return [{'text': item['text']} for item in transcript_list]
+
 def is_valid_video_id(video_id):
     # Basic YouTube video ID validation (11 characters, alphanumeric with some special chars)
     return bool(re.match(r'^[A-Za-z0-9_-]{11}$', video_id))
@@ -36,12 +41,17 @@ def transcript(video_id):
                 'error': 'Invalid video ID format'
             }), 400
 
+        # Get timestamps parameter (default to True)
+        include_timestamps = request.args.get('timestamps', 'true').lower() == 'true'
+        
         transcript_list = get_transcript(video_id)
+        processed_transcript = process_transcript(transcript_list, include_timestamps)
         
         return jsonify({
             'success': True,
             'video_id': video_id,
-            'transcript': transcript_list
+            'timestamps_included': include_timestamps,
+            'transcript': processed_transcript
         })
 
     except NoTranscriptFound:
