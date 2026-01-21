@@ -1,5 +1,12 @@
 from flask import Flask, jsonify, request, render_template
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import (
+    NoTranscriptFound,
+    VideoUnavailable,
+    RequestBlocked,
+    AgeRestricted,
+    VideoUnplayable
+)
 from xml.etree.ElementTree import ParseError
 from functools import lru_cache
 from flask_limiter import Limiter
@@ -22,10 +29,14 @@ limiter = Limiter(
 YOUTUBE_API_KEY = os.environ['YOUTUBE_API_KEY']
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 
+# YouTube Transcript API instance
+ytt_api = YouTubeTranscriptApi()
+
 # Cache configuration using LRU cache
 @lru_cache(maxsize=100)
 def get_transcript(video_id):
-    return YouTubeTranscriptApi.get_transcript(video_id)
+    transcript = ytt_api.fetch(video_id)
+    return transcript.to_raw_data()
 
 @lru_cache(maxsize=100)
 def get_video_comments(video_id, max_results=100):
@@ -96,11 +107,29 @@ def transcript(video_id):
         return jsonify({
             'error': 'No transcript found for this video'
         }), 404
-        
+
     except VideoUnavailable:
         return jsonify({
             'error': 'Video is unavailable'
         }), 404
+
+    except RequestBlocked:
+        return jsonify({
+            'error': 'Request blocked by YouTube',
+            'details': 'YouTube has blocked this request. This may be due to IP restrictions.'
+        }), 503
+
+    except AgeRestricted:
+        return jsonify({
+            'error': 'Video is age-restricted',
+            'details': 'This video requires age verification and cannot be accessed.'
+        }), 403
+
+    except VideoUnplayable as e:
+        return jsonify({
+            'error': 'Video is unplayable',
+            'details': str(e)
+        }), 403
 
     except ParseError:
         return jsonify({
