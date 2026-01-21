@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, render_template
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, VideoUnavailable
+from xml.etree.ElementTree import ParseError
 from functools import lru_cache
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -100,7 +101,13 @@ def transcript(video_id):
         return jsonify({
             'error': 'Video is unavailable'
         }), 404
-        
+
+    except ParseError:
+        return jsonify({
+            'error': 'Transcript unavailable',
+            'details': 'YouTube returned an invalid response. The video may have restricted transcripts or be temporarily unavailable.'
+        }), 503
+
     except Exception as e:
         return jsonify({
             'error': 'An unexpected error occurred',
