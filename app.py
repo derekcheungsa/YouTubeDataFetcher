@@ -185,9 +185,9 @@ def comments(video_id):
 
         # Get max_results parameter (default to 100, max 100)
         max_results = min(int(request.args.get('max_results', 100)), 100)
-        
+
         comments_list = get_video_comments(video_id, max_results)
-        
+
         return jsonify({
             'success': True,
             'video_id': video_id,
@@ -205,6 +205,41 @@ def comments(video_id):
             return jsonify({
                 'error': 'YouTube API quota exceeded'
             }), 429
+        else:
+            return jsonify({
+                'error': 'An unexpected error occurred',
+                'details': error_message
+            }), 500
+
+@app.route('/api/metadata/<video_id>', methods=['GET'])
+@limiter.limit("10 per minute")
+def metadata(video_id):
+    try:
+        if not is_valid_video_id(video_id):
+            return jsonify({
+                'error': 'Invalid video ID format'
+            }), 400
+
+        metadata_data = get_video_metadata(video_id)
+
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'quota_cost': 1,
+            'metadata': metadata_data
+        })
+
+    except Exception as e:
+        error_message = str(e)
+        if "Video not found" in error_message:
+            return jsonify({
+                'error': 'Video not found'
+            }), 404
+        elif "Access forbidden" in error_message:
+            return jsonify({
+                'error': 'Access forbidden',
+                'details': 'Quota may be exceeded or video is private'
+            }), 403
         else:
             return jsonify({
                 'error': 'An unexpected error occurred',
