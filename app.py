@@ -15,6 +15,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
 import re
+import isodate
 
 app = Flask(__name__)
 
@@ -96,6 +97,31 @@ def get_video_metadata(video_id):
         elif e.resp.status == 404:
             raise Exception("Video not found")
         raise e
+
+def parse_duration(iso_duration):
+    """
+    Parse ISO 8601 duration string (e.g., PT1H2M3S) into components.
+
+    Args:
+        iso_duration: ISO 8601 duration string (e.g., "PT1H2M3S")
+
+    Returns:
+        Dictionary with keys: raw, total_seconds, hours, minutes, seconds
+    """
+    duration = isodate.parse_duration(iso_duration)
+    total_seconds = int(duration.total_seconds())
+
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    return {
+        'raw': iso_duration,
+        'total_seconds': total_seconds,
+        'hours': hours,
+        'minutes': minutes,
+        'seconds': seconds
+    }
 
 def process_transcript(transcript_list, include_timestamps=True):
     if include_timestamps:
