@@ -34,12 +34,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 4. All new endpoints return consistent JSON structure matching existing transcript/comments endpoints
 5. Quota cost is visible in API responses (1 unit per metadata/stats call)
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Implement video metadata endpoint
-- [ ] 01-02: Implement video statistics endpoint
-- [ ] 01-03: Implement unified video data endpoint
+- [ ] 01-01-PLAN.md — Implement video metadata endpoint (title, description, tags, category, thumbnails, channel info, publish date)
+- [ ] 01-02-PLAN.md — Implement video statistics endpoint (views, likes, comments, duration with ISO 8601 parsing, definition, caption)
+- [ ] 01-03-PLAN.md — Implement unified video data endpoint (parallel fetch of transcript + metadata + stats with partial success handling)
 
 ### Phase 2: Discovery Features
 
