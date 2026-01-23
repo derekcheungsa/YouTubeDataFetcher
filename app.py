@@ -761,6 +761,21 @@ def unified_video_data(video_id):
             'details': str(e)
         }), 500
 
+@app.route('/health')
+def health():
+    """
+    Health check endpoint for the Flask API.
+
+    Returns:
+        JSON with service status and MCP server location.
+    """
+    return jsonify({
+        "status": "ok",
+        "service": "YouTube Data Fetcher API",
+        "flask": "running",
+        "mcp": "http://localhost:8000/mcp"
+    })
+
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
