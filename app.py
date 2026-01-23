@@ -98,6 +98,70 @@ def get_video_metadata(video_id):
             raise Exception("Video not found")
         raise e
 
+@lru_cache(maxsize=100)
+def get_video_statistics(video_id):
+    """
+    Fetch video statistics from YouTube Data API v3.
+
+    Args:
+        video_id: YouTube video ID (11 characters)
+
+    Returns:
+        Dictionary with view_count, like_count, comment_count, duration (parsed),
+        definition, and caption status
+
+    Raises:
+        Exception: If video not found or access is forbidden
+    """
+    try:
+        request = youtube.videos().list(
+            part='statistics,contentDetails',
+            id=video_id
+        )
+        response = request.execute()
+
+        if not response.get('items'):
+            raise Exception("Video not found")
+
+        video_data = response['items'][0]
+        statistics = video_data.get('statistics', {})
+        details = video_data.get('contentDetails', {})
+
+        # Extract statistics (convert to int, default to 0 if missing)
+        view_count = int(statistics.get('viewCount', 0))
+        like_count = int(statistics.get('likeCount', 0))
+        comment_count = int(statistics.get('commentCount', 0))
+
+        # Extract content details
+        duration_raw = details.get('duration', '')
+        definition = details.get('definition', '')
+        caption = details.get('caption', 'false') == 'true'
+
+        # Parse duration from ISO 8601 format
+        duration_parsed = parse_duration(duration_raw) if duration_raw else {
+            'raw': '',
+            'total_seconds': 0,
+            'hours': 0,
+            'minutes': 0,
+            'seconds': 0
+        }
+
+        return {
+            'view_count': view_count,
+            'like_count': like_count,
+            'comment_count': comment_count,
+            'duration': duration_parsed,
+            'definition': definition,
+            'caption': caption
+        }
+
+    except HttpError as e:
+        if e.resp.status == 403:
+            raise Exception("Access forbidden")
+        elif e.resp.status == 404:
+            raise Exception("Video not found")
+        raise e
+
 def parse_duration(iso_duration):
     """
     Parse ISO 8601 duration string (e.g., PT1H2M3S) into components.
