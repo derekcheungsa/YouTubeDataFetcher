@@ -456,6 +456,57 @@ def statistics(video_id):
                 'details': error_message
             }), 500
 
+@app.route('/api/video/<video_id>', methods=['GET'])
+@limiter.limit("10 per minute")
+def unified_video_data(video_id):
+    """
+    Unified endpoint to fetch complete video data (transcript, metadata, statistics) in parallel.
+
+    Returns:
+        JSON with all video data:
+        - success (bool): True if any data fetched successfully
+        - partial_success (bool): True if some fetches failed
+        - video_id (str): The video ID
+        - quota_cost (int): Total API quota cost (3)
+        - transcript: Video transcript with timestamps
+        - metadata: Video metadata (title, description, tags, etc.)
+        - statistics: Video statistics (views, likes, comments, duration)
+        - errors (list): Any errors from failed fetches
+
+    Status codes:
+        200: All data fetched successfully
+        207: Partial success (some data available, some failed)
+        400: Invalid video ID format
+        500: Complete failure (all fetches failed)
+    """
+    try:
+        if not is_valid_video_id(video_id):
+            return jsonify({
+                'error': 'Invalid video ID format'
+            }), 400
+
+        result = get_unified_video_data(video_id)
+
+        # Check if all fetches failed
+        if not result['success']:
+            return jsonify({
+                'error': 'Failed to retrieve video data',
+                'details': result['errors']
+            }), 500
+
+        # Check for partial success
+        if result['partial_success']:
+            return jsonify(result), 207  # Multi-Status
+
+        # All successful
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({
+            'error': 'An unexpected error occurred',
+            'details': str(e)
+        }), 500
+
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
