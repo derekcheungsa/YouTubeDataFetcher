@@ -49,7 +49,7 @@ def get_video_comments(video_id, max_results=100):
             textFormat="plainText"
         )
         response = request.execute()
-        
+
         comments = []
         for item in response['items']:
             comment = item['snippet']['topLevelComment']['snippet']
@@ -59,11 +59,42 @@ def get_video_comments(video_id, max_results=100):
                 'likes': comment['likeCount'],
                 'published_at': comment['publishedAt']
             })
-        
+
         return comments
     except HttpError as e:
         if e.resp.status == 403:
             raise Exception("Comments are disabled for this video")
+        raise e
+
+@lru_cache(maxsize=100)
+def get_video_metadata(video_id):
+    try:
+        request = youtube.videos().list(
+            part='snippet',
+            id=video_id
+        )
+        response = request.execute()
+
+        if not response.get('items'):
+            raise Exception("Video not found")
+
+        video_data = response['items'][0]
+        snippet = video_data['snippet']
+
+        return {
+            'title': snippet.get('title', ''),
+            'description': snippet.get('description', ''),
+            'tags': snippet.get('tags', []),
+            'category_id': snippet.get('categoryId', ''),
+            'thumbnails': snippet.get('thumbnails', {}),
+            'channel_title': snippet.get('channelTitle', ''),
+            'published_at': snippet.get('publishedAt', '')
+        }
+    except HttpError as e:
+        if e.resp.status == 403:
+            raise Exception("Access forbidden")
+        elif e.resp.status == 404:
+            raise Exception("Video not found")
         raise e
 
 def process_transcript(transcript_list, include_timestamps=True):
