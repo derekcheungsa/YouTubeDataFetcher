@@ -341,6 +341,152 @@ def search_youtube_videos(query, max_results=10):
     except Exception as e:
         raise e
 
+@lru_cache(maxsize=100)
+def get_channel_info(channel_id):
+    """
+    Fetch YouTube channel information from YouTube Channels API.
+
+    Args:
+        channel_id: YouTube channel ID (starts with 'UC', 24 characters)
+
+    Returns:
+        Dictionary with keys:
+        - channel_id (str): Channel ID
+        - title (str): Channel title
+        - description (str): Channel description
+        - subscriber_count (int): Number of subscribers
+        - video_count (int): Total videos on channel
+        - view_count (int): Total lifetime views
+        - created_at (str): ISO 8601 date when channel was created
+        - thumbnail (str): URL to channel thumbnail
+
+    Raises:
+        ValueError: If channel_id is empty
+        Exception: If channel not found or API error occurs
+    """
+    # Validate channel_id
+    if not channel_id or not channel_id.strip():
+        raise ValueError("Channel ID cannot be empty")
+
+    try:
+        request = youtube.channels().list(
+            part='snippet,statistics',
+            id=channel_id
+        )
+        response = request.execute()
+
+        # Check if channel was found
+        if not response.get('items'):
+            raise Exception(f"Channel not found: {channel_id}")
+
+        channel_data = response['items'][0]
+        snippet = channel_data.get('snippet', {})
+        statistics = channel_data.get('statistics', {})
+
+        # Extract thumbnail with fallback
+        thumbnail_url = None
+        thumbnails = snippet.get('thumbnails', {})
+        if 'default' in thumbnails:
+            thumbnail_url = thumbnails['default'].get('url')
+        elif 'medium' in thumbnails:
+            thumbnail_url = thumbnails['medium'].get('url')
+        elif 'high' in thumbnails:
+            thumbnail_url = thumbnails['high'].get('url')
+
+        return {
+            'channel_id': channel_data.get('id', channel_id),
+            'title': snippet.get('title', ''),
+            'description': snippet.get('description', ''),
+            'subscriber_count': int(statistics.get('subscriberCount', 0)),
+            'video_count': int(statistics.get('videoCount', 0)),
+            'view_count': int(statistics.get('viewCount', 0)),
+            'created_at': snippet.get('publishedAt', ''),
+            'thumbnail': thumbnail_url
+        }
+
+    except HttpError as e:
+        if e.resp.status == 404:
+            raise Exception(f"Channel not found: {channel_id}")
+        elif e.resp.status == 403:
+            raise Exception("Access forbidden. Quota may be exceeded or API key is invalid.")
+        raise e
+    except Exception as e:
+        raise e
+
+@lru_cache(maxsize=50)
+def get_channel_uploads(channel_id, max_results=10):
+    """
+    Fetch recent video uploads from a YouTube channel using YouTube Search API.
+
+    Args:
+        channel_id: YouTube channel ID (starts with 'UC', 24 characters)
+        max_results: Maximum number of videos to return (1-50, default: 10)
+
+    Returns:
+        List of video objects with keys:
+        - video_id (str): 11-character YouTube video ID
+        - title (str): Video title
+        - description (str): Video description
+        - thumbnail (str): Thumbnail URL
+        - published_at (str): ISO 8601 publish date
+
+    Raises:
+        ValueError: If max_results out of range
+        Exception: If channel not found or API error occurs
+    """
+    # Validate and clamp max_results
+    max_results = max(1, min(50, int(max_results)))
+
+    try:
+        request = youtube.search().list(
+            part='snippet',
+            channelId=channel_id,
+            type='video',
+            order='date',  # Most recent first
+            maxResults=max_results
+        )
+        response = request.execute()
+
+        # Extract video data from response
+        videos = []
+        for item in response.get('items', []):
+            # Extract video ID (nested structure for search results)
+            video_id = item.get('id', {}).get('videoId')
+            if not video_id:
+                continue
+
+            snippet = item.get('snippet', {})
+
+            # Extract thumbnail with fallback
+            thumbnail_url = None
+            thumbnails = snippet.get('thumbnails', {})
+            if 'default' in thumbnails:
+                thumbnail_url = thumbnails['default'].get('url')
+            elif 'medium' in thumbnails:
+                thumbnail_url = thumbnails['medium'].get('url')
+            elif 'high' in thumbnails:
+                thumbnail_url = thumbnails['high'].get('url')
+
+            videos.append({
+                'video_id': video_id,
+                'title': snippet.get('title', ''),
+                'description': snippet.get('description', ''),
+                'thumbnail': thumbnail_url,
+                'published_at': snippet.get('publishedAt', '')
+            })
+
+        return videos
+
+    except HttpError as e:
+        if e.resp.status == 403:
+            error_content = e.content.decode('utf-8') if hasattr(e, 'content') else ''
+            if 'quota' in error_content.lower():
+                raise Exception("YouTube API quota exceeded.")
+            raise Exception("Access forbidden. Quota may be exceeded or API key is invalid.")
+        raise e
+    except Exception as e:
+        raise e
+
 def parse_duration(iso_duration):
     """
     Parse ISO 8601 duration string (e.g., PT1H2M3S) into components.
