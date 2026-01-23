@@ -336,6 +336,55 @@ def metadata(video_id):
                 'details': error_message
             }), 500
 
+@app.route('/api/statistics/<video_id>', methods=['GET'])
+@limiter.limit("10 per minute")
+def statistics(video_id):
+    """
+    Endpoint to fetch video statistics.
+
+    Returns:
+        JSON with success, video_id, quota_cost (1), and statistics object
+        containing view_count, like_count, comment_count, duration, definition,
+        and caption status.
+
+    Error responses:
+        400: Invalid video ID format
+        403: Access forbidden (quota exceeded or private video)
+        404: Video not found
+        500: Unexpected error
+    """
+    try:
+        if not is_valid_video_id(video_id):
+            return jsonify({
+                'error': 'Invalid video ID format'
+            }), 400
+
+        statistics_data = get_video_statistics(video_id)
+
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'quota_cost': 1,
+            'statistics': statistics_data
+        })
+
+    except Exception as e:
+        error_message = str(e)
+        if "Video not found" in error_message:
+            return jsonify({
+                'error': 'Video not found'
+            }), 404
+        elif "Access forbidden" in error_message:
+            return jsonify({
+                'error': 'Access forbidden',
+                'details': 'Quota may be exceeded or video is private'
+            }), 403
+        else:
+            return jsonify({
+                'error': 'An unexpected error occurred',
+                'details': error_message
+            }), 500
+
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({
