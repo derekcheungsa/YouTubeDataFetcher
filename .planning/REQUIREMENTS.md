@@ -25,9 +25,9 @@ Current scope — building toward MCP-enabled API with metadata endpoints:
 
 #### Video Metadata (META)
 
-- [ ] **META-01**: Fetch video metadata (title, description, tags, category, thumbnails)
-- [ ] **META-02**: Fetch video statistics (views, likes, comment count, duration)
-- [ ] **META-03**: Unified video data endpoint combining transcript + metadata + stats
+- [x] **META-01**: Fetch video metadata (title, description, tags, category, thumbnails)
+- [x] **META-02**: Fetch video statistics (views, likes, comment count, duration)
+- [x] **META-03**: Unified video data endpoint combining transcript + metadata + stats
 
 #### Channel Data (CHAN)
 
@@ -94,9 +94,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| META-01 | Phase 1 | Pending |
-| META-02 | Phase 1 | Pending |
-| META-03 | Phase 1 | Pending |
+| META-01 | Phase 1 | Complete |
+| META-02 | Phase 1 | Complete |
+| META-03 | Phase 1 | Complete |
 | CHAN-01 | Phase 2 | Pending |
 | CHAN-02 | Phase 2 | Pending |
 | DISC-01 | Phase 2 | Pending |

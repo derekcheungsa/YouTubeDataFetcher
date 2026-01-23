@@ -12,7 +12,7 @@ Transform the existing Flask REST API into a dual-interface server (REST + MCP) 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Metadata** - Extend API with video metadata, statistics, and unified data endpoint
+- [x] **Phase 1: Core Metadata** - Extend API with video metadata, statistics, and unified data endpoint (Completed: 2026-01-23)
 - [ ] **Phase 2: Discovery Features** - Add channel information and video discovery endpoints
 - [ ] **Phase 3: Service Layer Refactor** - Extract business logic to enable dual REST/MCP interfaces
 - [ ] **Phase 4: MCP Server** - Implement MCP interface with workflow-based tools for AI agents
@@ -118,7 +118,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Metadata | 0/3 | Not started | - |
+| 1. Core Metadata | 3/3 | ✓ Complete | 2026-01-23 |
 | 2. Discovery Features | 0/3 | Not started | - |
 | 3. Service Layer Refactor | 0/3 | Not started | - |
 | 4. MCP Server | 0/5 | Not started | - |
