@@ -11,17 +11,17 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 4 of 4 (MCP Server)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 04-01-PLAN.md (FastMCP Server Infrastructure)
+Last activity: 2026-01-23 — Completed 04-02-PLAN.md (analyze_video MCP Tool)
 
-Progress: [##--------] 28%
+Progress: [###-------] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 6 min
+- Total plans completed: 5
+- Average duration: 5 min
 - Total execution time: 0.4 hours
 
 **By Phase:**
@@ -29,10 +29,10 @@ Progress: [##--------] 28%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-metadata | 3 | 3 | 6 min |
-| 04-mcp-server | 1 | 5 | 5 min |
+| 04-mcp-server | 2 | 5 | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min (01-01), 3 min (01-02), 10 min (01-03), 5 min (04-01)
+- Last 5 plans: 5 min (01-01), 3 min (01-02), 10 min (01-03), 5 min (04-01), 3 min (04-02)
 - Trend: -
 
 *Updated after each plan completion*
@@ -70,6 +70,13 @@ Recent decisions affecting current work:
 - Updated typing_extensions from ==4.8.0 to >=4.9.0 to resolve FastMCP dependency conflict
 - Established tool registration pattern using @mcp.tool() decorator
 
+**From 04-02 (analyze_video MCP Tool):**
+- Used regex pattern for video ID extraction supporting all YouTube URL formats (watch, youtu.be, embed, etc.)
+- Set quota_cost=4 (transcript=0, metadata=1, stats=1, comments=1) to track API usage
+- Implemented partial success pattern: tool returns available data even if some fetches fail
+- Created get_comments_for_video helper in app.py to provide clean interface for MCP tool
+- Leveraged existing get_unified_video_data for parallel fetching via ThreadPoolExecutor
+
 ### Pending Todos
 
 [From .planning/todos/pending/ — ideas captured during sessions]
@@ -85,7 +92,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 04-01-PLAN.md (FastMCP Server Infrastructure)
+Stopped at: Completed 04-02-PLAN.md (analyze_video MCP Tool)
 Resume file: None
 
 **Phase 1 Complete:**
@@ -95,3 +102,4 @@ Resume file: None
 
 **Phase 4 In Progress:**
 - 04-01: FastMCP Server Infrastructure ✓
+- 04-02: analyze_video MCP Tool ✓
