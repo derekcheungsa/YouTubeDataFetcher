@@ -121,6 +121,44 @@ The API implements the following rate limits:
 - 100 requests per day per IP address
 - 10 requests per minute per IP address
 
+## MCP Server
+
+This project includes a Model Context Protocol (MCP) server for AI agent integration.
+
+**Running the servers:**
+
+```bash
+# Start both Flask API and MCP server
+python main.py
+```
+
+This starts:
+- Flask REST API: http://localhost:5000
+- MCP Server: http://localhost:8000/mcp
+
+**MCP Tools:**
+
+1. **analyze_video** - Fetch complete YouTube video data (transcript, metadata, statistics, comments)
+   - Accepts: video URL or ID
+   - Returns: Full data bundle with graceful degradation
+
+2. **search_youtube_content** - Search YouTube videos by keyword
+   - Accepts: search query, max_results (default 10)
+   - Warning: Expensive (100 YouTube API quota units)
+
+3. **get_channel_overview** - Fetch channel info and recent uploads
+   - Accepts: channel URL or ID, max_uploads (default 10)
+   - Returns: Channel metadata + recent videos
+
+**Health Checks:**
+
+- Flask: http://localhost:5000/health
+- MCP: http://localhost:8000/health
+
+**Integration:**
+
+Use these MCP tools from n8n or other MCP-compatible platforms to integrate YouTube data into AI workflows.
+
 ## Usage Examples
 
 ### Using cURL
