@@ -233,6 +233,26 @@ def get_unified_video_data(video_id):
 
     return result
 
+@lru_cache(maxsize=100)
+def get_comments_for_video(video_id, max_results=100):
+    """
+    Fetch comments for a video.
+
+    This is a helper function for the MCP tool to fetch comments
+    without dealing with Flask request/response structures.
+
+    Args:
+        video_id: YouTube video ID (11 characters)
+        max_results: Maximum number of comments to fetch (default: 100)
+
+    Returns:
+        List of comment dictionaries with author, text, likes, and published_at
+
+    Raises:
+        Exception: If comments are disabled or video not found
+    """
+    return get_video_comments(video_id, max_results)
+
 def parse_duration(iso_duration):
     """
     Parse ISO 8601 duration string (e.g., PT1H2M3S) into components.
