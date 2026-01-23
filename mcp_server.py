@@ -10,7 +10,7 @@ from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 import re
-from app import get_unified_video_data, get_comments_for_video, is_valid_video_id
+from app import get_unified_video_data, get_comments_for_video, is_valid_video_id, search_youtube_videos
 
 # Create FastMCP instance
 mcp = FastMCP("YouTube Data Fetcher")
@@ -154,6 +154,80 @@ def analyze_video(video_url_or_id: str) -> dict:
 
     if not has_any_data:
         result['success'] = False
+
+    return result
+
+
+@mcp.tool()
+def search_youtube_content(query: str, max_results: int = 10) -> dict:
+    """
+    Search YouTube videos by keyword. WARNING: Expensive operation (100 YouTube API quota units).
+
+    Returns video list with IDs, titles, thumbnails, descriptions.
+    Use analyze_video() with video IDs to get complete transcript, metadata, statistics, and comments.
+
+    Args:
+        query: Search query for finding videos
+        max_results: Maximum number of results to return (1-50, default: 10)
+
+    Returns:
+        Dictionary containing:
+        - success (bool): True if search completed successfully
+        - query (str): The search query that was executed
+        - result_count (int): Number of videos returned
+        - quota_cost (int): API quota cost (100 - expensive!)
+        - videos (list): List of video objects with:
+            - video_id (str): 11-character YouTube video ID
+            - title (str): Video title
+            - description (str): Video description
+            - thumbnail (str): Thumbnail URL
+            - channel_title (str): Channel name
+            - published_at (str): ISO 8601 publish date
+        - workflow_hint (str): Guidance to use analyze_video for full data
+        - error (str): Error message if search failed
+    """
+    # Validate max_results parameter
+    try:
+        max_results = int(max_results)
+        if max_results < 1:
+            max_results = 1
+        elif max_results > 50:
+            max_results = 50
+    except (ValueError, TypeError):
+        max_results = 10
+
+    # Initialize result structure
+    result = {
+        'success': False,
+        'query': query,
+        'result_count': 0,
+        'quota_cost': 100,  # Search API is expensive!
+        'videos': [],
+        'workflow_hint': 'Use analyze_video() with these video IDs to get complete transcript, metadata, statistics, and comments.',
+        'error': None
+    }
+
+    # Validate query
+    if not query or not query.strip():
+        result['error'] = 'Search query cannot be empty'
+        return result
+
+    # Execute search
+    try:
+        videos = search_youtube_videos(query, max_results)
+
+        result['success'] = True
+        result['result_count'] = len(videos)
+        result['videos'] = videos
+
+    except ValueError as e:
+        result['error'] = f'Invalid search parameters: {str(e)}'
+    except Exception as e:
+        error_msg = str(e)
+        if 'quota' in error_msg.lower():
+            result['error'] = 'YouTube API quota exceeded. The Search API is expensive (100 units per request).'
+        else:
+            result['error'] = f'Search failed: {error_msg}'
 
     return result
 
