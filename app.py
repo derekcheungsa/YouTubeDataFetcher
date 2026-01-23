@@ -253,6 +253,94 @@ def get_comments_for_video(video_id, max_results=100):
     """
     return get_video_comments(video_id, max_results)
 
+@lru_cache(maxsize=50)
+def search_youtube_videos(query, max_results=10):
+    """
+    Search YouTube videos by keyword using YouTube Search API.
+
+    WARNING: This operation costs 100 YouTube API quota units per request.
+    The Search API is expensive compared to other endpoints.
+
+    Args:
+        query: Search query string (must not be empty)
+        max_results: Maximum number of results to return (1-50, default: 10)
+
+    Returns:
+        List of video objects with keys:
+        - video_id (str): 11-character YouTube video ID
+        - title (str): Video title
+        - description (str): Video description
+        - thumbnail (str): Thumbnail URL
+        - channel_title (str): Channel name
+        - published_at (str): ISO 8601 publish date
+
+    Raises:
+        ValueError: If query is empty/None or max_results out of range
+        HttpError: If API quota exceeded or other API errors
+        Exception: For other errors
+    """
+    # Validate query
+    if not query or not query.strip():
+        raise ValueError("Search query cannot be empty")
+
+    # Validate and clamp max_results to YouTube API limits
+    max_results = max(1, min(50, int(max_results)))
+
+    try:
+        # Call YouTube Search API
+        search_request = youtube.search().list(
+            part='snippet',
+            q=query,
+            type='video',
+            maxResults=max_results,
+            order='relevance'  # Most relevant results first
+        )
+        search_response = search_request.execute()
+
+        # Extract video data from response
+        videos = []
+        for item in search_response.get('items', []):
+            # Extract video ID (nested structure for search results)
+            video_id = item.get('id', {}).get('videoId')
+            if not video_id:
+                continue
+
+            snippet = item.get('snippet', {})
+
+            # Extract thumbnail with fallback
+            thumbnail_url = None
+            thumbnails = snippet.get('thumbnails', {})
+            if 'default' in thumbnails:
+                thumbnail_url = thumbnails['default'].get('url')
+            elif 'medium' in thumbnails:
+                thumbnail_url = thumbnails['medium'].get('url')
+            elif 'high' in thumbnails:
+                thumbnail_url = thumbnails['high'].get('url')
+
+            videos.append({
+                'video_id': video_id,
+                'title': snippet.get('title', ''),
+                'description': snippet.get('description', ''),
+                'thumbnail': thumbnail_url,
+                'channel_title': snippet.get('channelTitle', ''),
+                'published_at': snippet.get('publishedAt', '')
+            })
+
+        return videos
+
+    except HttpError as e:
+        if e.resp.status == 403:
+            # Check if it's quota exceeded
+            error_content = e.content.decode('utf-8') if hasattr(e, 'content') else ''
+            if 'quota' in error_content.lower():
+                raise Exception("YouTube API quota exceeded. Search API is expensive (100 units per request).")
+            raise Exception("Access forbidden. Quota may be exceeded or API key is invalid.")
+        elif e.resp.status == 400:
+            raise Exception(f"Invalid search request: {e}")
+        raise e
+    except Exception as e:
+        raise e
+
 def parse_duration(iso_duration):
     """
     Parse ISO 8601 duration string (e.g., PT1H2M3S) into components.
