@@ -37,9 +37,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Implement video metadata endpoint (title, description, tags, category, thumbnails, channel info, publish date)
-- [ ] 01-02-PLAN.md — Implement video statistics endpoint (views, likes, comments, duration with ISO 8601 parsing, definition, caption)
-- [ ] 01-03-PLAN.md — Implement unified video data endpoint (parallel fetch of transcript + metadata + stats with partial success handling)
+- [x] 01-01-PLAN.md — Implement video metadata endpoint (title, description, tags, category, thumbnails, channel info, publish date)
+- [x] 01-02-PLAN.md — Implement video statistics endpoint (views, likes, comments, duration with ISO 8601 parsing, definition, caption)
+- [x] 01-03-PLAN.md — Implement unified video data endpoint (parallel fetch of transcript + metadata + stats with partial success handling)
 
 ### Phase 2: Discovery Features
 
@@ -102,14 +102,14 @@ Plans:
 6. Both REST and MCP interfaces share the same service layer (no duplicate logic)
 7. Single process serves both interfaces on Railway deployment (Streamable HTTP transport)
 
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 04-01: Create FastMCP server with tool definitions
-- [ ] 04-02: Implement analyze_video tool (unified data bundle)
-- [ ] 04-03: Implement search_youtube_content tool
-- [ ] 04-04: Implement get_channel_overview tool
-- [ ] 04-05: Configure dual transport (stdio for local, HTTP for Railway)
+- [ ] 04-01-PLAN.md — Create FastMCP server infrastructure with HTTP transport
+- [ ] 04-02-PLAN.md — Implement analyze_video tool (unified data bundle: transcript + metadata + statistics + comments)
+- [ ] 04-03-PLAN.md — Implement search_youtube_content tool (keyword search via YouTube Search API)
+- [ ] 04-04-PLAN.md — Implement get_channel_overview tool (channel info + recent uploads)
+- [ ] 04-05-PLAN.md — Configure dual-server architecture (Flask + MCP in single process for Railway deployment)
 
 ## Progress
 
