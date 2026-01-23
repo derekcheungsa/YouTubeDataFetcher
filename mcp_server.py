@@ -10,7 +10,7 @@ from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 import re
-from app import get_unified_video_data, get_comments_for_video, is_valid_video_id, search_youtube_videos
+from app import get_unified_video_data, get_comments_for_video, is_valid_video_id, search_youtube_videos, get_channel_info, get_channel_uploads
 
 # Create FastMCP instance
 mcp = FastMCP("YouTube Data Fetcher")
@@ -228,6 +228,149 @@ def search_youtube_content(query: str, max_results: int = 10) -> dict:
             result['error'] = 'YouTube API quota exceeded. The Search API is expensive (100 units per request).'
         else:
             result['error'] = f'Search failed: {error_msg}'
+
+    return result
+
+
+def extract_channel_id(channel_url_or_id: str) -> str:
+    """
+    Extract YouTube channel ID from a URL or validate a bare channel ID.
+
+    Args:
+        channel_url_or_id: YouTube channel URL or channel ID (starts with 'UC')
+
+    Returns:
+        str: Extracted or validated channel ID
+
+    Raises:
+        ValueError: If channel ID cannot be extracted or is invalid
+    """
+    # Remove whitespace
+    channel_url_or_id = channel_url_or_id.strip()
+
+    # Check if it's already a channel ID (starts with UC, 24 chars alphanumeric)
+    # Channel IDs pattern: UC followed by 22 characters (total 24)
+    if re.match(r'^UC[A-Za-z0-9_-]{22}$', channel_url_or_id):
+        return channel_url_or_id
+
+    # Try to extract from YouTube channel URL: youtube.com/channel/<CHANNEL_ID>
+    pattern_channel = r'youtube\.com\/channel\/(UC[A-Za-z0-9_-]{22})'
+    match = re.search(pattern_channel, channel_url_or_id)
+    if match:
+        return match.group(1)
+
+    # Custom URLs and handles require additional API lookups
+    # For MVP, we'll return a helpful error message
+    if '/c/' in channel_url_or_id:
+        raise ValueError(
+            f"Custom channel URLs (e.g., youtube.com/c/username) are not supported in MVP. "
+            f"Please provide the full channel ID (starts with 'UC') or use youtube.com/channel/<CHANNEL_ID> URL format."
+        )
+
+    if '/@' in channel_url_or_id:
+        raise ValueError(
+            f"Channel handles (e.g., youtube.com/@username) are not supported in MVP. "
+            f"Please provide the full channel ID (starts with 'UC') or use youtube.com/channel/<CHANNEL_ID> URL format."
+        )
+
+    raise ValueError(
+        f"Could not extract valid channel ID from: {channel_url_or_id}. "
+        f"Provide a valid channel ID (starts with 'UC', 24 characters) or full YouTube channel URL (youtube.com/channel/<CHANNEL_ID>)."
+    )
+
+
+@mcp.tool()
+def get_channel_overview(channel_url_or_id: str, max_uploads: int = 10) -> dict:
+    """
+    Fetch YouTube channel information and recent uploads. Accepts channel URL or ID.
+
+    Returns channel metadata (title, description, subscriber count) and most recent videos.
+    Use analyze_video() with video IDs to get complete transcript, metadata, statistics, and comments.
+
+    Args:
+        channel_url_or_id: YouTube channel URL or channel ID (starts with 'UC')
+        max_uploads: Maximum number of recent uploads to return (1-50, default: 10)
+
+    Returns:
+        Dictionary containing:
+        - success (bool): True if channel data fetched successfully
+        - channel (dict): Channel information with:
+            - channel_id (str): Channel ID
+            - title (str): Channel title
+            - description (str): Channel description
+            - subscriber_count (int): Number of subscribers
+            - video_count (int): Total videos on channel
+            - view_count (int): Total lifetime views
+            - created_at (str): ISO 8601 creation date
+            - thumbnail (str): Channel thumbnail URL
+        - uploads (list): Recent video uploads with:
+            - video_id (str): 11-character YouTube video ID
+            - title (str): Video title
+            - description (str): Video description
+            - thumbnail (str): Thumbnail URL
+            - published_at (str): ISO 8601 publish date
+        - upload_count (int): Number of uploads returned
+        - quota_cost (int): Total API quota cost (2)
+        - workflow_hint (str): Guidance to use analyze_video for full data
+        - error (str): Error message if fetch failed
+    """
+    # Validate and clamp max_uploads parameter
+    try:
+        max_uploads = int(max_uploads)
+        if max_uploads < 1:
+            max_uploads = 1
+        elif max_uploads > 50:
+            max_uploads = 50
+    except (ValueError, TypeError):
+        max_uploads = 10
+
+    # Initialize result structure
+    result = {
+        'success': False,
+        'channel': None,
+        'uploads': [],
+        'upload_count': 0,
+        'quota_cost': 2,  # 1 for channel info, 1 for uploads search
+        'workflow_hint': 'Use analyze_video() with upload video IDs to get complete transcript, metadata, statistics, and comments.',
+        'error': None
+    }
+
+    # Extract and validate channel ID
+    try:
+        channel_id = extract_channel_id(channel_url_or_id)
+    except ValueError as e:
+        result['error'] = str(e)
+        result['quota_cost'] = 0
+        return result
+
+    # Fetch channel information
+    try:
+        channel_info = get_channel_info(channel_id)
+        result['channel'] = channel_info
+        result['success'] = True
+    except Exception as e:
+        error_msg = str(e)
+        if 'not found' in error_msg.lower():
+            result['error'] = f'Channel not found: {channel_id}'
+        elif 'quota' in error_msg.lower():
+            result['error'] = 'YouTube API quota exceeded.'
+        else:
+            result['error'] = f'Failed to fetch channel info: {error_msg}'
+        result['quota_cost'] = 1  # Channel info fetch attempted
+        return result
+
+    # Fetch channel uploads
+    try:
+        uploads = get_channel_uploads(channel_id, max_uploads)
+        result['uploads'] = uploads
+        result['upload_count'] = len(uploads)
+    except Exception as e:
+        error_msg = str(e)
+        if 'quota' in error_msg.lower():
+            result['error'] = f'Channel info fetched, but uploads failed: YouTube API quota exceeded.'
+        else:
+            result['error'] = f'Channel info fetched, but uploads failed: {error_msg}'
+        # Keep success=True since we got channel data
 
     return result
 
