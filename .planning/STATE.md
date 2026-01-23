@@ -11,28 +11,28 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 4 of 4 (MCP Server)
-Plan: 2 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In progress
-Last activity: 2026-01-23 — Completed 04-02-PLAN.md (analyze_video MCP Tool)
+Last activity: 2026-01-23 — Completed 04-03-PLAN.md (YouTube Search MCP Tool)
 
-Progress: [###-------] 40%
+Progress: [#####-----] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 5 min
-- Total execution time: 0.4 hours
+- Total execution time: 0.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-metadata | 3 | 3 | 6 min |
-| 04-mcp-server | 2 | 5 | 4 min |
+| 04-mcp-server | 3 | 5 | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min (01-01), 3 min (01-02), 10 min (01-03), 5 min (04-01), 3 min (04-02)
+- Last 5 plans: 3 min (01-02), 10 min (01-03), 5 min (04-01), 3 min (04-02), 4 min (04-03)
 - Trend: -
 
 *Updated after each plan completion*
@@ -77,6 +77,14 @@ Recent decisions affecting current work:
 - Created get_comments_for_video helper in app.py to provide clean interface for MCP tool
 - Leveraged existing get_unified_video_data for parallel fetching via ThreadPoolExecutor
 
+**From 04-03 (YouTube Search MCP Tool):**
+- Used @lru_cache(maxsize=50) for search function (lower than data fetch due to query variability)
+- Set quota_cost=100 to explicitly track and warn about expensive Search API usage (vs 1 unit for metadata/statistics)
+- Included workflow_hint in response guiding users to analyze_video for complete data retrieval
+- Clamped max_results parameter to 1-50 range to match YouTube API limits and prevent errors
+- Ordered search results by 'relevance' to return most relevant videos first for general queries
+- Extracted thumbnail with fallback chain (default -> medium -> high) to handle missing sizes gracefully
+
 ### Pending Todos
 
 [From .planning/todos/pending/ — ideas captured during sessions]
@@ -92,7 +100,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 04-02-PLAN.md (analyze_video MCP Tool)
+Stopped at: Completed 04-03-PLAN.md (YouTube Search MCP Tool)
 Resume file: None
 
 **Phase 1 Complete:**
@@ -103,3 +111,4 @@ Resume file: None
 **Phase 4 In Progress:**
 - 04-01: FastMCP Server Infrastructure ✓
 - 04-02: analyze_video MCP Tool ✓
+- 04-03: YouTube Search MCP Tool ✓
