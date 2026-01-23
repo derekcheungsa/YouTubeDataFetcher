@@ -6,33 +6,33 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Get YouTube video data into AI workflows with minimal friction — REST for flexibility, MCP for seamless n8n integration
 
-**Current focus:** Phase 4: MCP Server
+**Current focus:** Phase 4: MCP Server (COMPLETE)
 
 ## Current Position
 
 Phase: 4 of 4 (MCP Server)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-01-23 — Completed 04-04-PLAN.md (Channel Overview MCP Tool)
+Plan: 5 of 5 in current phase
+Status: Phase complete
+Last activity: 2026-01-23 — Completed 04-05-PLAN.md (Dual-Server Production Architecture)
 
-Progress: [########--] 80%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 5 min
-- Total execution time: 0.6 hours
+- Total execution time: 0.7 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-metadata | 3 | 3 | 6 min |
-| 04-mcp-server | 4 | 5 | 4 min |
+| 04-mcp-server | 5 | 5 | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min (04-01), 3 min (04-02), 4 min (04-03), 4 min (04-04)
+- Last 5 plans: 5 min (04-01), 3 min (04-02), 4 min (04-03), 4 min (04-04), 8 min (04-05)
 - Trend: -
 
 *Updated after each plan completion*
@@ -94,6 +94,15 @@ Recent decisions affecting current work:
 - Included workflow_hint to guide users from channel overview to analyze_video() for full data
 - Implemented partial success: returns channel data even if uploads fail
 
+**From 04-05 (Dual-Server Production Architecture):**
+- Used threading (daemon=True) to run MCP server in background while Flask runs in main thread
+- MCP server on port 8000 via uvicorn, Flask on port 5000 in main thread
+- Single `python main.py` command starts both servers simultaneously
+- Added health check endpoints for both services (Flask: /health, MCP: /health)
+- Updated Dockerfile to expose both ports 5000 and 8000 with health check command
+- Configured for Railway deployment with HTTP transport MCP (not stdio)
+- Flask health check returns MCP server location for service discovery
+
 ### Pending Todos
 
 [From .planning/todos/pending/ — ideas captured during sessions]
@@ -109,7 +118,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 04-04-PLAN.md (Channel Overview MCP Tool)
+Stopped at: Completed Phase 4 (MCP Server) - all five plans finished
 Resume file: None
 
 **Phase 1 Complete:**
@@ -117,8 +126,14 @@ Resume file: None
 - 01-02: Video Statistics Endpoint (GET /api/statistics/<video_id>)
 - 01-03: Unified Video Data Endpoint (GET /api/video/<video_id>)
 
-**Phase 4 In Progress:**
+**Phase 4 Complete:**
 - 04-01: FastMCP Server Infrastructure ✓
 - 04-02: analyze_video MCP Tool ✓
 - 04-03: YouTube Search MCP Tool ✓
 - 04-04: Channel Overview MCP Tool ✓
+- 04-05: Dual-Server Production Architecture ✓
+
+**MCP Tools Implemented (3 total):**
+1. analyze_video - Fetch complete YouTube video data (transcript, metadata, statistics, comments)
+2. search_youtube_content - Search YouTube videos by keyword (100 quota cost)
+3. get_channel_overview - Fetch channel info and recent uploads
