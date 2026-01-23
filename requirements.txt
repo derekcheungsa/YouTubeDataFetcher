@@ -13,3 +13,4 @@ typing_extensions>=4.9.0
 google-api-python-client
 isodate>=0.6.1
 fastmcp>=2.14.0
+uvicorn>=0.24.0
