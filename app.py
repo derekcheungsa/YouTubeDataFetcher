@@ -164,6 +164,75 @@ def get_video_statistics(video_id):
             raise Exception("Video not found")
         raise e
 
+@lru_cache(maxsize=100)
+def get_unified_video_data(video_id):
+    """
+    Fetch complete video data (transcript, metadata, statistics) in parallel.
+
+    Uses ThreadPoolExecutor to fetch all three data types concurrently,
+    then aggregates results with error handling for partial failures.
+
+    Args:
+        video_id: YouTube video ID (11 characters)
+
+    Returns:
+        Dictionary with:
+        - success (bool): True if any data fetched successfully
+        - partial_success (bool): True if some fetches failed
+        - video_id (str): The video ID
+        - quota_cost (int): Total API quota cost (3)
+        - transcript (dict/list or None): Transcript data
+        - metadata (dict or None): Video metadata
+        - statistics (dict or None): Video statistics
+        - errors (list): List of {field, error} for failed fetches
+    """
+    # Initialize result structure
+    result = {
+        'success': True,
+        'partial_success': False,
+        'video_id': video_id,
+        'quota_cost': 3,
+        'transcript': None,
+        'metadata': None,
+        'statistics': None,
+        'errors': []
+    }
+
+    # Create fetch functions with video_id bound using functools.partial
+    fetch_functions = {
+        'transcript': functools.partial(get_transcript, video_id),
+        'metadata': functools.partial(get_video_metadata, video_id),
+        'statistics': functools.partial(get_video_statistics, video_id)
+    }
+
+    # Execute fetches in parallel using ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        # Submit all fetch functions and store futures
+        futures = {
+            executor.submit(func): field_name
+            for field_name, func in fetch_functions.items()
+        }
+
+        # Process completed futures as they finish
+        for future in as_completed(futures):
+            field_name = futures[future]
+            try:
+                result[field_name] = future.result()
+            except Exception as e:
+                # Field failed: store None, log error, mark partial success
+                result[field_name] = None
+                result['errors'].append({
+                    'field': field_name,
+                    'error': str(e)
+                })
+                result['partial_success'] = True
+
+    # If all fetches failed, set success to False
+    if result['errors'] and not any([result['transcript'], result['metadata'], result['statistics']]):
+        result['success'] = False
+
+    return result
+
 def parse_duration(iso_duration):
     """
     Parse ISO 8601 duration string (e.g., PT1H2M3S) into components.
