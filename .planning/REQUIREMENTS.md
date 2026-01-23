@@ -41,11 +41,11 @@ Current scope — building toward MCP-enabled API with metadata endpoints:
 
 #### MCP Server (MCP)
 
-- [ ] **MCP-01**: MCP server interface exposing all endpoints as tools
-- [ ] **MCP-02**: Single process serving both REST and MCP interfaces
-- [ ] **MCP-03**: MCP tool: analyze_video (unified data bundle)
-- [ ] **MCP-04**: MCP tool: search_youtube_content (keyword/topic search)
-- [ ] **MCP-05**: MCP tool: get_channel_overview (channel + recent uploads)
+- [x] **MCP-01**: MCP server interface exposing all endpoints as tools
+- [x] **MCP-02**: Single process serving both REST and MCP interfaces
+- [x] **MCP-03**: MCP tool: analyze_video (unified data bundle)
+- [x] **MCP-04**: MCP tool: search_youtube_content (keyword/topic search)
+- [x] **MCP-05**: MCP tool: get_channel_overview (channel + recent uploads)
 
 #### Service Layer (SRVC)
 
@@ -104,11 +104,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SRVC-01 | Phase 3 | Pending |
 | SRVC-02 | Phase 3 | Pending |
 | SRVC-03 | Phase 3 | Pending |
-| MCP-01 | Phase 4 | Pending |
-| MCP-02 | Phase 4 | Pending |
-| MCP-03 | Phase 4 | Pending |
-| MCP-04 | Phase 4 | Pending |
-| MCP-05 | Phase 4 | Pending |
+| MCP-01 | Phase 4 | Complete |
+| MCP-02 | Phase 4 | Complete |
+| MCP-03 | Phase 4 | Complete |
+| MCP-04 | Phase 4 | Complete |
+| MCP-05 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 13 total (7 Validated, 13 Active)
