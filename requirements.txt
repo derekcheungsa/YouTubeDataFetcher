@@ -14,3 +14,4 @@ google-api-python-client
 isodate>=0.6.1
 fastmcp>=2.14.0
 uvicorn>=0.24.0
+requests>=2.31.0

@@ -773,7 +773,9 @@ def health():
         "status": "ok",
         "service": "YouTube Data Fetcher API",
         "flask": "running",
-        "mcp": "http://localhost:8000/mcp"
+        "rest_api": "available at /api/*",
+        "mcp_server": "available at /mcp/* (proxied)",
+        "mcp_tools": "analyze_video, search_youtube_content, get_channel_overview"
     })
 
 @app.errorhandler(429)

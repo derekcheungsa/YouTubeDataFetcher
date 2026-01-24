@@ -125,16 +125,30 @@ The API implements the following rate limits:
 
 This project includes a Model Context Protocol (MCP) server for AI agent integration.
 
-**Running the servers:**
+**Architecture: Single Port Deployment**
+
+Both Flask REST API and MCP Server run on the **same port** (Railway's PORT or 5000 locally):
+- Flask REST API: Available at `/*` (all other paths)
+- MCP Server: Available at `/mcp/*` (proxied by Flask)
+
+This allows both services to be accessible through Railway's single exposed port.
+
+**Running locally:**
 
 ```bash
-# Start both Flask API and MCP server
 python main.py
 ```
 
 This starts:
-- Flask REST API: http://localhost:5000
-- MCP Server: http://localhost:8000/mcp
+- Flask REST API: http://localhost:5000/api/* (or Railway's PORT)
+- MCP Server: http://localhost:5000/mcp/* (proxied to internal server)
+
+**Running on Railway:**
+
+1. Deploy to Railway
+2. Set `YOUTUBE_API_KEY` environment variable
+3. Railway automatically assigns a port
+4. Both REST API and MCP Server accessible on that port
 
 **MCP Tools:**
 
@@ -152,8 +166,15 @@ This starts:
 
 **Health Checks:**
 
-- Flask: http://localhost:5000/health
-- MCP: http://localhost:8000/health
+- Flask: http://localhost:5000/health (or Railway's URL)
+- MCP (proxied): http://localhost:5000/mcp/health
+
+**n8n Integration:**
+
+When configuring n8n's MCP Client Tool:
+- Use the Railway URL (e.g., `https://your-app.railway.app`)
+- MCP endpoint: `/mcp` (n8n automatically appends `/tools/list`, etc.)
+- Example: `https://your-app.railway.app/mcp`
 
 **Integration:**
 
