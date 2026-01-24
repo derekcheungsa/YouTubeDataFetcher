@@ -9,11 +9,47 @@ from urllib.parse import urlencode
 from mcp_server import create_mcp_app
 
 
+# Global flag to track if MCP server has been started
+_mcp_server_started = False
+_mcp_startup_lock = threading.Lock()
+
+
 def run_mcp_server():
     """Run the MCP server on localhost (internal only)."""
     mcp_app = create_mcp_app()
     # Run on localhost so it's not publicly accessible
     uvicorn.run(mcp_app, host="127.0.0.1", port=8000, log_level="warning")
+
+
+def start_mcp_server():
+    """Start the MCP server in a background thread if not already started."""
+    global _mcp_server_started
+
+    with _mcp_startup_lock:
+        if not _mcp_server_started:
+            print("Starting MCP server in background thread...", flush=True)
+            mcp_thread = threading.Thread(target=run_mcp_server, daemon=True)
+            mcp_thread.start()
+            _mcp_server_started = True
+
+            # Wait for MCP server to be ready
+            print("Waiting for MCP server to start...", flush=True)
+            max_retries = 10
+            for i in range(max_retries):
+                try:
+                    response = requests.get("http://127.0.0.1:8000/health", timeout=2)
+                    if response.status_code == 200:
+                        print("MCP server is ready!", flush=True)
+                        break
+                except:
+                    if i < max_retries - 1:
+                        time.sleep(0.5)
+                    else:
+                        print("Warning: MCP server may not be ready, continuing anyway...", flush=True)
+
+
+# Start MCP server when this module is imported (happens with gunicorn/Railway)
+start_mcp_server()
 
 
 @app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
@@ -91,25 +127,6 @@ def proxy_mcp(path=''):
 
 
 if __name__ == "__main__":
-    # Start MCP server in a background thread (internal only)
-    mcp_thread = threading.Thread(target=run_mcp_server, daemon=True)
-    mcp_thread.start()
-
-    # Wait for MCP server to be ready before accepting requests
-    print("Waiting for MCP server to start...", flush=True)
-    max_retries = 10
-    for i in range(max_retries):
-        try:
-            response = requests.get("http://127.0.0.1:8000/health", timeout=2)
-            if response.status_code == 200:
-                print("MCP server is ready!", flush=True)
-                break
-        except:
-            if i < max_retries - 1:
-                time.sleep(0.5)
-            else:
-                print("Warning: MCP server may not be ready, continuing anyway...", flush=True)
-
     # Get port from Railway environment variable, or default to 5000 for local dev
     port = int(os.environ.get('PORT', 5000))
 
