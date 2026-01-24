@@ -833,12 +833,13 @@ def run_mcp_server():
         from mcp_server import create_mcp_app
         mcp_app = create_mcp_app()
         import uvicorn
+        logger.info("Starting uvicorn on 127.0.0.1:8000...")
         uvicorn.run(
             mcp_app,
             host="127.0.0.1",
             port=8000,
-            log_level="error",
-            access_log=False,
+            log_level="info",
+            access_log=True,
             timeout_keep_alive=30
         )
     except Exception as e:
@@ -855,9 +856,23 @@ def ensure_mcp_server_running():
             _mcp_server_thread = threading.Thread(target=run_mcp_server, daemon=True)
             _mcp_server_thread.start()
             _mcp_server_started = True
-            logger.info("MCP server thread started, waiting 1s for initialization...")
-            time.sleep(1)
-            logger.info("MCP server should be ready now")
+
+            # Wait for server to be ready with health check
+            logger.info("Waiting for MCP server to be ready...")
+            max_retries = 10
+            for i in range(max_retries):
+                try:
+                    resp = requests.get("http://127.0.0.1:8000/health", timeout=1)
+                    if resp.status_code == 200:
+                        logger.info("MCP server is ready!")
+                        return
+                except:
+                    if i < max_retries - 1:
+                        logger.debug(f"Health check attempt {i+1} failed, retrying...")
+                        time.sleep(0.5)
+                    else:
+                        logger.error("MCP server failed to start after multiple attempts")
+                        raise Exception("MCP server failed to start")
 
 
 @app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
