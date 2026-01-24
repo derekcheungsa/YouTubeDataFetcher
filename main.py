@@ -4,7 +4,7 @@ import uvicorn
 import os
 import requests
 import time
-from flask import request, Response
+from flask import request, Response, jsonify
 from urllib.parse import urlencode
 from mcp_server import create_mcp_app
 
@@ -18,7 +18,15 @@ def run_mcp_server():
     """Run the MCP server on localhost (internal only)."""
     mcp_app = create_mcp_app()
     # Run on localhost so it's not publicly accessible
-    uvicorn.run(mcp_app, host="127.0.0.1", port=8000, log_level="warning")
+    # Use log_level="info" for better debugging
+    uvicorn.run(
+        mcp_app,
+        host="127.0.0.1",
+        port=8000,
+        log_level="info",
+        access_log=True,
+        timeout_keep_alive=30
+    )
 
 
 def start_mcp_server():
@@ -28,7 +36,7 @@ def start_mcp_server():
     with _mcp_startup_lock:
         if not _mcp_server_started:
             print("Starting MCP server in background thread...", flush=True)
-            mcp_thread = threading.Thread(target=run_mcp_server, daemon=True)
+            mcp_thread = threading.Thread(target=run_mcp_server, daemon=False)
             mcp_thread.start()
             _mcp_server_started = True
 
@@ -115,13 +123,13 @@ def proxy_mcp(path=''):
 
         except requests.exceptions.ConnectionError as e:
             app.logger.error(f"MCP server connection error: {e}")
-            return Response({"error": "MCP server not available", "detail": str(e)}, 502)
+            return jsonify({"error": "MCP server not available", "detail": str(e)}), 502
         except requests.exceptions.Timeout as e:
             app.logger.error(f"MCP server timeout: {e}")
-            return Response({"error": "MCP server timeout", "detail": str(e)}, 504)
+            return jsonify({"error": "MCP server timeout", "detail": str(e)}), 504
         except Exception as e:
             app.logger.error(f"MCP proxy error: {e}")
-            return Response({"error": "MCP proxy error", "detail": str(e)}, 500)
+            return jsonify({"error": "MCP proxy error", "detail": str(e)}), 500
 
     return Response("Method not allowed", 405)
 
