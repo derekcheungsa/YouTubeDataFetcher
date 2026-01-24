@@ -14,8 +14,9 @@ def run_mcp_server():
     uvicorn.run(mcp_app, host="127.0.0.1", port=8000, log_level="warning")
 
 
+@app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
 @app.route('/mcp/<path:path>', methods=['GET', 'POST', 'OPTIONS'])
-def proxy_mcp(path):
+def proxy_mcp(path=''):
     """
     Proxy MCP requests to the internal MCP server.
 
@@ -26,7 +27,7 @@ def proxy_mcp(path):
     the internal MCP server running on localhost:8000.
     """
     # Get the internal MCP server URL
-    mcp_url = f"http://127.0.0.1:8000/{path}"
+    mcp_url = f"http://127.0.0.1:8000/mcp/{path}"
 
     # Forward the request to the MCP server
     if request.method == 'OPTIONS':
