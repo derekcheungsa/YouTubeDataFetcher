@@ -10,10 +10,33 @@ from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 import re
+from pydantic import BaseModel, ConfigDict
+from typing import Optional, List, Any
 from app import get_unified_video_data, get_comments_for_video, is_valid_video_id, search_youtube_videos, get_channel_info, get_channel_uploads
 
 # Create FastMCP instance
 mcp = FastMCP("YouTube Data Fetcher")
+
+
+# Pydantic models for MCP tool inputs with extra='ignore' to handle n8n metadata
+class AnalyzeVideoInput(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    video_url_or_id: str
+
+
+class SearchYouTubeContentInput(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    query: str
+    max_results: Optional[int] = 10
+
+
+class GetChannelOverviewInput(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    channel_url_or_id: str
+    max_uploads: Optional[int] = 10
 
 
 def extract_video_id(video_url_or_id: str) -> str:
@@ -61,14 +84,14 @@ def health_check(request: Request) -> PlainTextResponse:
 
 
 @mcp.tool()
-def analyze_video(video_url_or_id: str) -> dict:
+def analyze_video(inputs: AnalyzeVideoInput) -> dict:
     """
     Fetch complete YouTube video data including transcript, metadata, statistics, and comments.
 
     Accepts video URL or ID. Returns full data bundle with graceful degradation if some data is unavailable.
 
     Args:
-        video_url_or_id: YouTube video URL or 11-character video ID
+        inputs: AnalyzeVideoInput with video_url_or_id (YouTube video URL or 11-character video ID)
 
     Returns:
         Dictionary containing:
@@ -82,6 +105,9 @@ def analyze_video(video_url_or_id: str) -> dict:
         - quota_cost (int): Total API quota cost (4)
         - errors (list): List of {field, error} for any failed fetches
     """
+    # Extract video_url_or_id from inputs (ignores extra n8n parameters)
+    video_url_or_id = inputs.video_url_or_id
+
     # Extract and validate video ID
     try:
         video_id = extract_video_id(video_url_or_id)
@@ -159,7 +185,7 @@ def analyze_video(video_url_or_id: str) -> dict:
 
 
 @mcp.tool()
-def search_youtube_content(query: str, max_results: int = 10) -> dict:
+def search_youtube_content(inputs: SearchYouTubeContentInput) -> dict:
     """
     Search YouTube videos by keyword. WARNING: Expensive operation (100 YouTube API quota units).
 
@@ -167,8 +193,7 @@ def search_youtube_content(query: str, max_results: int = 10) -> dict:
     Use analyze_video() with video IDs to get complete transcript, metadata, statistics, and comments.
 
     Args:
-        query: Search query for finding videos
-        max_results: Maximum number of results to return (1-50, default: 10)
+        inputs: SearchYouTubeContentInput with query (search query) and max_results (1-50, default: 10)
 
     Returns:
         Dictionary containing:
@@ -186,6 +211,10 @@ def search_youtube_content(query: str, max_results: int = 10) -> dict:
         - workflow_hint (str): Guidance to use analyze_video for full data
         - error (str): Error message if search failed
     """
+    # Extract parameters from inputs (ignores extra n8n parameters)
+    query = inputs.query
+    max_results = inputs.max_results or 10
+
     # Validate max_results parameter
     try:
         max_results = int(max_results)
@@ -280,7 +309,7 @@ def extract_channel_id(channel_url_or_id: str) -> str:
 
 
 @mcp.tool()
-def get_channel_overview(channel_url_or_id: str, max_uploads: int = 10) -> dict:
+def get_channel_overview(inputs: GetChannelOverviewInput) -> dict:
     """
     Fetch YouTube channel information and recent uploads. Accepts channel URL or ID.
 
@@ -288,8 +317,7 @@ def get_channel_overview(channel_url_or_id: str, max_uploads: int = 10) -> dict:
     Use analyze_video() with video IDs to get complete transcript, metadata, statistics, and comments.
 
     Args:
-        channel_url_or_id: YouTube channel URL or channel ID (starts with 'UC')
-        max_uploads: Maximum number of recent uploads to return (1-50, default: 10)
+        inputs: GetChannelOverviewInput with channel_url_or_id (YouTube channel URL or ID) and max_uploads (1-50, default: 10)
 
     Returns:
         Dictionary containing:
@@ -314,6 +342,10 @@ def get_channel_overview(channel_url_or_id: str, max_uploads: int = 10) -> dict:
         - workflow_hint (str): Guidance to use analyze_video for full data
         - error (str): Error message if fetch failed
     """
+    # Extract parameters from inputs (ignores extra n8n parameters)
+    channel_url_or_id = inputs.channel_url_or_id
+    max_uploads = inputs.max_uploads or 10
+
     # Validate and clamp max_uploads parameter
     try:
         max_uploads = int(max_uploads)
