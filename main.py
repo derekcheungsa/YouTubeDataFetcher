@@ -3,46 +3,48 @@ import threading
 import uvicorn
 import os
 import requests
+import atexit
 from flask import request, Response, jsonify
 from urllib.parse import urlencode
 from mcp_server import create_mcp_app
 
 
-# Global flag to track if MCP server has been started
+# Global state for MCP server
+_mcp_server_thread = None
 _mcp_server_started = False
 _mcp_startup_lock = threading.Lock()
 
 
 def run_mcp_server():
     """Run the MCP server on localhost (internal only)."""
-    mcp_app = create_mcp_app()
-    # Run on localhost so it's not publicly accessible
-    uvicorn.run(
-        mcp_app,
-        host="127.0.0.1",
-        port=8000,
-        log_level="warning",  # Reduced logging to avoid spam
-        access_log=False,
-        timeout_keep_alive=30
-    )
+    try:
+        mcp_app = create_mcp_app()
+        uvicorn.run(
+            mcp_app,
+            host="127.0.0.1",
+            port=8000,
+            log_level="error",  # Minimal logging
+            access_log=False,
+            timeout_keep_alive=30
+        )
+    except Exception as e:
+        print(f"MCP server error: {e}", flush=True)
 
 
-def start_mcp_server():
-    """Start the MCP server in a background thread if not already started."""
-    global _mcp_server_started
+def ensure_mcp_server_running():
+    """Ensure MCP server is running (called on first request)."""
+    global _mcp_server_thread, _mcp_server_started
 
     with _mcp_startup_lock:
         if not _mcp_server_started:
-            print("Starting MCP server in background thread...", flush=True)
-            mcp_thread = threading.Thread(target=run_mcp_server, daemon=False)
-            mcp_thread.start()
+            print("Starting MCP server on-demand...", flush=True)
+            _mcp_server_thread = threading.Thread(target=run_mcp_server, daemon=True)
+            _mcp_server_thread.start()
             _mcp_server_started = True
-            print("MCP server thread started", flush=True)
 
-
-# Start MCP server when this module is imported (happens with gunicorn/Railway)
-# Note: We don't wait for it to be ready to avoid blocking Flask startup
-start_mcp_server()
+            # Give it a moment to start
+            import time
+            time.sleep(1)
 
 
 @app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
@@ -51,14 +53,13 @@ def proxy_mcp(path=''):
     """
     Proxy MCP requests to the internal MCP server.
 
-    This allows both Flask REST API and MCP Server to be accessible
-    through Railway's single exposed port.
-
     MCP endpoints are available at /mcp/* and are proxied to
     the internal MCP server running on localhost:8000.
     """
+    # Ensure MCP server is running before proxying
+    ensure_mcp_server_running()
+
     # Get the internal MCP server URL
-    # Avoid double slash when path is empty
     path_suffix = f"/{path}" if path else ""
     mcp_url = f"http://127.0.0.1:8000/mcp{path_suffix}"
 
@@ -80,7 +81,6 @@ def proxy_mcp(path=''):
             full_url = mcp_url
 
         # Filter headers to avoid protocol issues
-        # Remove headers that could cause SSL/protocol upgrades
         filtered_headers = {}
         skip_headers = {'Host', 'X-Forwarded-Proto', 'X-Forwarded-Host',
                        'X-Forwarded-For', 'X-Forwarded-Port', 'Forwarded'}
@@ -124,5 +124,4 @@ if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
 
     # Run Flask app on Railway's PORT (publicly accessible)
-    # Flask proxies /mcp/* requests to internal MCP server
     app.run(host="0.0.0.0", port=port)
