@@ -3,6 +3,7 @@ import threading
 import uvicorn
 import os
 import requests
+import time
 from flask import request, Response
 from urllib.parse import urlencode
 from mcp_server import create_mcp_app
@@ -58,22 +59,33 @@ def proxy_mcp(path=''):
             if key not in skip_headers:
                 filtered_headers[key] = value
 
-        # Forward GET/POST requests
-        resp = requests.request(
-            method=request.method,
-            url=full_url,
-            headers=filtered_headers,
-            data=request.get_data(),
-            timeout=30
-        )
+        try:
+            # Forward GET/POST requests
+            resp = requests.request(
+                method=request.method,
+                url=full_url,
+                headers=filtered_headers,
+                data=request.get_data(),
+                timeout=30
+            )
 
-        # Create Flask response from MCP server response
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items()
-                   if name.lower() not in excluded_headers]
+            # Create Flask response from MCP server response
+            excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+            headers = [(name, value) for (name, value) in resp.raw.headers.items()
+                       if name.lower() not in excluded_headers]
 
-        response = Response(resp.content, resp.status_code, headers)
-        return response
+            response = Response(resp.content, resp.status_code, headers)
+            return response
+
+        except requests.exceptions.ConnectionError as e:
+            app.logger.error(f"MCP server connection error: {e}")
+            return Response({"error": "MCP server not available", "detail": str(e)}, 502)
+        except requests.exceptions.Timeout as e:
+            app.logger.error(f"MCP server timeout: {e}")
+            return Response({"error": "MCP server timeout", "detail": str(e)}, 504)
+        except Exception as e:
+            app.logger.error(f"MCP proxy error: {e}")
+            return Response({"error": "MCP proxy error", "detail": str(e)}, 500)
 
     return Response("Method not allowed", 405)
 
@@ -82,6 +94,21 @@ if __name__ == "__main__":
     # Start MCP server in a background thread (internal only)
     mcp_thread = threading.Thread(target=run_mcp_server, daemon=True)
     mcp_thread.start()
+
+    # Wait for MCP server to be ready before accepting requests
+    print("Waiting for MCP server to start...", flush=True)
+    max_retries = 10
+    for i in range(max_retries):
+        try:
+            response = requests.get("http://127.0.0.1:8000/health", timeout=2)
+            if response.status_code == 200:
+                print("MCP server is ready!", flush=True)
+                break
+        except:
+            if i < max_retries - 1:
+                time.sleep(0.5)
+            else:
+                print("Warning: MCP server may not be ready, continuing anyway...", flush=True)
 
     # Get port from Railway environment variable, or default to 5000 for local dev
     port = int(os.environ.get('PORT', 5000))
