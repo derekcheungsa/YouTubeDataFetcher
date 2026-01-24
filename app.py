@@ -921,16 +921,21 @@ def proxy_mcp(path=''):
 
         try:
             logger.info(f"Forwarding {request.method} request to MCP server")
-            # Forward GET/POST requests
+            import time
+            start_time = time.time()
+
+            # Forward GET/POST requests with extended timeout
+            # YouTube API operations can take 60+ seconds
             resp = requests.request(
                 method=request.method,
                 url=full_url,
                 headers=filtered_headers,
                 data=request.get_data(),
-                timeout=30
+                timeout=120  # Increased from 30 to 120 seconds
             )
 
-            logger.info(f"MCP server responded: {resp.status_code}")
+            elapsed = time.time() - start_time
+            logger.info(f"MCP server responded: {resp.status_code} (took {elapsed:.1f}s)")
 
             # Create Flask response from MCP server response
             excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
