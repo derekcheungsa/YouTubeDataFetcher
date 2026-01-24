@@ -840,7 +840,8 @@ def run_mcp_server():
             port=8000,
             log_level="info",
             access_log=True,
-            timeout_keep_alive=30
+            timeout_keep_alive=120,
+            workers=4  # Handle multiple concurrent requests
         )
     except Exception as e:
         logger.error(f"MCP server crashed: {e}", exc_info=True)
