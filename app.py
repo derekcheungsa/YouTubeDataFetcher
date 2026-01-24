@@ -1,4 +1,6 @@
 from flask import Flask, jsonify, request, render_template
+import logging
+import sys
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     NoTranscriptFound,
@@ -18,8 +20,22 @@ import os
 import re
 import isodate
 import functools
+import threading
+import requests
+import time
+from urllib.parse import urlencode
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Configure rate limiter
 limiter = Limiter(
@@ -796,6 +812,136 @@ def ratelimit_handler(e):
         'error': 'Rate limit exceeded',
         'details': str(e.description)
     }), 429
+
+
+# ============================================================================
+# MCP Server Proxy - Runs MCP server in background and proxies requests
+# ============================================================================
+
+logger.info("Initializing MCP server proxy...")
+
+# Global state for MCP server
+_mcp_server_thread = None
+_mcp_server_started = False
+_mcp_startup_lock = threading.Lock()
+
+
+def run_mcp_server():
+    """Run the MCP server on localhost (internal only)."""
+    try:
+        logger.info("MCP server thread starting...")
+        from mcp_server import create_mcp_app
+        mcp_app = create_mcp_app()
+        import uvicorn
+        uvicorn.run(
+            mcp_app,
+            host="127.0.0.1",
+            port=8000,
+            log_level="error",
+            access_log=False,
+            timeout_keep_alive=30
+        )
+    except Exception as e:
+        logger.error(f"MCP server crashed: {e}", exc_info=True)
+
+
+def ensure_mcp_server_running():
+    """Ensure MCP server is running (called on first request)."""
+    global _mcp_server_thread, _mcp_server_started
+
+    with _mcp_startup_lock:
+        if not _mcp_server_started:
+            logger.info("Starting MCP server on-demand...")
+            _mcp_server_thread = threading.Thread(target=run_mcp_server, daemon=True)
+            _mcp_server_thread.start()
+            _mcp_server_started = True
+            logger.info("MCP server thread started, waiting 1s for initialization...")
+            time.sleep(1)
+            logger.info("MCP server should be ready now")
+
+
+@app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/mcp/<path:path>', methods=['GET', 'POST', 'OPTIONS'])
+def proxy_mcp(path=''):
+    """
+    Proxy MCP requests to the internal MCP server.
+
+    MCP endpoints are available at /mcp/* and are proxied to
+    the internal MCP server running on localhost:8000.
+    """
+    logger.info(f"MCP proxy request: {request.method} /mcp/{path}")
+
+    # Ensure MCP server is running before proxying
+    ensure_mcp_server_running()
+
+    # Get the internal MCP server URL
+    path_suffix = f"/{path}" if path else ""
+    mcp_url = f"http://127.0.0.1:8000/mcp{path_suffix}"
+    logger.debug(f"Proxying to: {mcp_url}")
+
+    # Forward the request to the MCP server
+    if request.method == 'OPTIONS':
+        logger.info("Handling CORS preflight request")
+        response = jsonify({"status": "ok"})
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    elif request.method in ['GET', 'POST']:
+        # Build URL with query string if present
+        if request.args:
+            query_string = urlencode(request.args)
+            full_url = f"{mcp_url}?{query_string}"
+        else:
+            full_url = mcp_url
+
+        # Filter headers to avoid protocol issues
+        filtered_headers = {}
+        skip_headers = {'Host', 'X-Forwarded-Proto', 'X-Forwarded-Host',
+                       'X-Forwarded-For', 'X-Forwarded-Port', 'Forwarded'}
+        for key, value in request.headers:
+            if key not in skip_headers:
+                filtered_headers[key] = value
+
+        try:
+            logger.info(f"Forwarding {request.method} request to MCP server")
+            # Forward GET/POST requests
+            resp = requests.request(
+                method=request.method,
+                url=full_url,
+                headers=filtered_headers,
+                data=request.get_data(),
+                timeout=30
+            )
+
+            logger.info(f"MCP server responded: {resp.status_code}")
+
+            # Create Flask response from MCP server response
+            excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+            headers = [(name, value) for (name, value) in resp.raw.headers.items()
+                       if name.lower() not in excluded_headers]
+
+            response = jsonify(resp.json() if resp.content else {})
+            response.status_code = resp.status_code
+            for name, value in headers:
+                response.headers[name] = value
+            return response
+
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"MCP server connection error: {e}")
+            return jsonify({"error": "MCP server not available", "detail": str(e)}), 502
+        except requests.exceptions.Timeout as e:
+            logger.error(f"MCP server timeout: {e}")
+            return jsonify({"error": "MCP server timeout", "detail": str(e)}), 504
+        except Exception as e:
+            logger.error(f"MCP proxy error: {e}", exc_info=True)
+            return jsonify({"error": "MCP proxy error", "detail": str(e)}), 500
+
+    return jsonify({"error": "Method not allowed"}), 405
+
+
+logger.info("MCP proxy routes registered successfully")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
