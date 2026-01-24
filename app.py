@@ -937,7 +937,17 @@ def proxy_mcp(path=''):
             headers = [(name, value) for (name, value) in resp.raw.headers.items()
                        if name.lower() not in excluded_headers]
 
-            response = jsonify(resp.json() if resp.content else {})
+            # Try to parse JSON response, otherwise use raw content
+            if resp.content:
+                try:
+                    response = jsonify(resp.json())
+                except:
+                    # Not JSON, return raw content
+                    response = Response(resp.content, resp.status_code)
+            else:
+                # Empty response
+                response = Response('', resp.status_code)
+
             response.status_code = resp.status_code
             for name, value in headers:
                 response.headers[name] = value
