@@ -9,10 +9,86 @@ to AI agents through a streamable HTTP interface.
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
+from starlette.middleware import Middleware
 import re
 from pydantic import BaseModel, ConfigDict
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict, Callable
 from app import get_unified_video_data, get_comments_for_video, is_valid_video_id, search_youtube_videos, get_channel_info, get_channel_uploads
+
+
+class N8NParameterFilterMiddleware:
+    """
+    ASGI middleware to strip n8n-specific parameters from MCP tool calls.
+
+    n8n sends extra parameters (sessionId, action, chatInput, toolCallId) that
+    violate the MCP specification. This middleware removes them before the
+    request reaches FastMCP's validation.
+    """
+
+    # Parameters that n8n sends but aren't part of MCP spec
+    N8N_EXTRA_PARAMS = {'sessionId', 'action', 'chatInput', 'toolCallId'}
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope['type'] == 'http':
+            # Intercept request body for POST requests
+            if scope['method'] == 'POST':
+                # Filter the request body
+                receive_filtered = self._create_filtered_receive(receive)
+                await self.app(scope, receive_filtered, send)
+                return
+
+        await self.app(scope, receive, send)
+
+    def _create_filtered_receive(self, receive: Callable) -> Callable:
+        """Create a filtered receive function that removes n8n's extra parameters."""
+        async def filtered_receive():
+            message = await receive()
+
+            if message['type'] == 'http.request':
+                body = message.get('body', b'')
+
+                if body:
+                    import json
+                    try:
+                        # Parse JSON body
+                        data = json.loads(body)
+
+                        # Filter out n8n's extra parameters from all nested objects
+                        filtered_data = self._filter_n8n_params(data)
+
+                        # Re-encode the filtered body
+                        filtered_body = json.dumps(filtered_data).encode('utf-8')
+
+                        # Update message with filtered body
+                        message['body'] = filtered_body
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        # Not JSON or can't decode, leave as-is
+                        pass
+
+            return message
+
+        return filtered_receive
+
+    def _filter_n8n_params(self, data: Any) -> Any:
+        """Recursively filter n8n's extra parameters from data structure."""
+        if isinstance(data, dict):
+            # Remove n8n-specific keys at this level
+            filtered = {k: v for k, v in data.items()
+                       if k not in self.N8N_EXTRA_PARAMS}
+
+            # Recursively filter nested values
+            return {k: self._filter_n8n_params(v) for k, v in filtered.items()}
+
+        elif isinstance(data, list):
+            # Recursively filter list items
+            return [self._filter_n8n_params(item) for item in data]
+
+        else:
+            # Return primitive types as-is
+            return data
 
 # Create FastMCP instance
 mcp = FastMCP("YouTube Data Fetcher")
@@ -409,15 +485,21 @@ def get_channel_overview(inputs: GetChannelOverviewInput) -> dict:
 
 def create_mcp_app():
     """
-    Create and return the ASGI application for the MCP server.
+    Create and return the ASGI application for the MCP server with n8n parameter filtering.
 
     This function returns the ASGI app that can be mounted in production
     deployments or run directly with an ASGI server like uvicorn.
 
+    The app is wrapped with N8NParameterFilterMiddleware to strip n8n-specific
+    parameters (sessionId, action, chatInput, toolCallId) that violate the
+    MCP specification.
+
     Returns:
-        ASGI application: The FastMCP HTTP application
+        ASGI application: The FastMCP HTTP application with parameter filtering
     """
-    return mcp.http_app()
+    # Wrap FastMCP's http_app with our n8n parameter filter middleware
+    app = mcp.http_app()
+    return N8NParameterFilterMiddleware(app)
 
 
 if __name__ == "__main__":
