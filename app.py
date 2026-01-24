@@ -29,8 +29,8 @@ limiter = Limiter(
 )
 
 # YouTube API setup
-YOUTUBE_API_KEY = os.environ['YOUTUBE_API_KEY']
-youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')
+youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None
 
 # YouTube Transcript API instance
 ytt_api = YouTubeTranscriptApi()
@@ -43,6 +43,8 @@ def get_transcript(video_id):
 
 @lru_cache(maxsize=100)
 def get_video_comments(video_id, max_results=100):
+    if not youtube:
+        raise Exception("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.")
     try:
         request = youtube.commentThreads().list(
             part="snippet",
@@ -71,6 +73,8 @@ def get_video_comments(video_id, max_results=100):
 
 @lru_cache(maxsize=100)
 def get_video_metadata(video_id):
+    if not youtube:
+        raise Exception("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.")
     try:
         request = youtube.videos().list(
             part='snippet',
@@ -115,6 +119,8 @@ def get_video_statistics(video_id):
     Raises:
         Exception: If video not found or access is forbidden
     """
+    if not youtube:
+        raise Exception("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.")
     try:
         request = youtube.videos().list(
             part='statistics,contentDetails',
@@ -279,6 +285,8 @@ def search_youtube_videos(query, max_results=10):
         HttpError: If API quota exceeded or other API errors
         Exception: For other errors
     """
+    if not youtube:
+        raise Exception("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.")
     # Validate query
     if not query or not query.strip():
         raise ValueError("Search query cannot be empty")
@@ -364,6 +372,8 @@ def get_channel_info(channel_id):
         ValueError: If channel_id is empty
         Exception: If channel not found or API error occurs
     """
+    if not youtube:
+        raise Exception("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.")
     # Validate channel_id
     if not channel_id or not channel_id.strip():
         raise ValueError("Channel ID cannot be empty")
@@ -434,6 +444,8 @@ def get_channel_uploads(channel_id, max_results=10):
         ValueError: If max_results out of range
         Exception: If channel not found or API error occurs
     """
+    if not youtube:
+        raise Exception("YouTube API key not configured. Set YOUTUBE_API_KEY environment variable.")
     # Validate and clamp max_results
     max_results = max(1, min(50, int(max_results)))
 
