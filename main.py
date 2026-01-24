@@ -3,7 +3,6 @@ import threading
 import uvicorn
 import os
 import requests
-import time
 from flask import request, Response, jsonify
 from urllib.parse import urlencode
 from mcp_server import create_mcp_app
@@ -18,13 +17,12 @@ def run_mcp_server():
     """Run the MCP server on localhost (internal only)."""
     mcp_app = create_mcp_app()
     # Run on localhost so it's not publicly accessible
-    # Use log_level="info" for better debugging
     uvicorn.run(
         mcp_app,
         host="127.0.0.1",
         port=8000,
-        log_level="info",
-        access_log=True,
+        log_level="warning",  # Reduced logging to avoid spam
+        access_log=False,
         timeout_keep_alive=30
     )
 
@@ -39,24 +37,11 @@ def start_mcp_server():
             mcp_thread = threading.Thread(target=run_mcp_server, daemon=False)
             mcp_thread.start()
             _mcp_server_started = True
-
-            # Wait for MCP server to be ready
-            print("Waiting for MCP server to start...", flush=True)
-            max_retries = 10
-            for i in range(max_retries):
-                try:
-                    response = requests.get("http://127.0.0.1:8000/health", timeout=2)
-                    if response.status_code == 200:
-                        print("MCP server is ready!", flush=True)
-                        break
-                except:
-                    if i < max_retries - 1:
-                        time.sleep(0.5)
-                    else:
-                        print("Warning: MCP server may not be ready, continuing anyway...", flush=True)
+            print("MCP server thread started", flush=True)
 
 
 # Start MCP server when this module is imported (happens with gunicorn/Railway)
+# Note: We don't wait for it to be ready to avoid blocking Flask startup
 start_mcp_server()
 
 
