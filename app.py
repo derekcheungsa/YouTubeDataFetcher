@@ -840,11 +840,13 @@ def run_mcp_server():
             port=8000,
             log_level="info",
             access_log=True,
-            timeout_keep_alive=120,
-            workers=4  # Handle multiple concurrent requests
+            timeout_keep_alive=120
         )
+        logger.info("Uvicorn shutdown gracefully")
     except Exception as e:
         logger.error(f"MCP server crashed: {e}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
 
 
 def ensure_mcp_server_running():
@@ -886,6 +888,12 @@ def proxy_mcp(path=''):
     the internal MCP server running on localhost:8000.
     """
     logger.info(f"MCP proxy request: {request.method} /mcp/{path}")
+
+    # Check if MCP server thread is still alive
+    if _mcp_server_thread and not _mcp_server_thread.is_alive():
+        logger.error("MCP server thread is dead! Marking for restart...")
+        global _mcp_server_started
+        _mcp_server_started = False
 
     # Ensure MCP server is running before proxying
     ensure_mcp_server_running()
