@@ -61,7 +61,7 @@ def health_check(request: Request) -> PlainTextResponse:
 
 
 @mcp.tool()
-def analyze_video(video_url_or_id: str, **kwargs) -> dict:
+def analyze_video(video_url_or_id: str) -> dict:
     """
     Fetch complete YouTube video data including transcript, metadata, statistics, and comments.
 
@@ -159,7 +159,7 @@ def analyze_video(video_url_or_id: str, **kwargs) -> dict:
 
 
 @mcp.tool()
-def search_youtube_content(query: str, max_results: int = 10, **kwargs) -> dict:
+def search_youtube_content(query: str, max_results: int = 10) -> dict:
     """
     Search YouTube videos by keyword. WARNING: Expensive operation (100 YouTube API quota units).
 
@@ -280,7 +280,7 @@ def extract_channel_id(channel_url_or_id: str) -> str:
 
 
 @mcp.tool()
-def get_channel_overview(channel_url_or_id: str, max_uploads: int = 10, **kwargs) -> dict:
+def get_channel_overview(channel_url_or_id: str, max_uploads: int = 10) -> dict:
     """
     Fetch YouTube channel information and recent uploads. Accepts channel URL or ID.
 
