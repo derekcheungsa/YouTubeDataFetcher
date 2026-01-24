@@ -4,6 +4,7 @@ import uvicorn
 import os
 import requests
 from flask import request, Response
+from urllib.parse import urlencode
 from mcp_server import create_mcp_app
 
 
@@ -27,7 +28,9 @@ def proxy_mcp(path=''):
     the internal MCP server running on localhost:8000.
     """
     # Get the internal MCP server URL
-    mcp_url = f"http://127.0.0.1:8000/mcp/{path}"
+    # Avoid double slash when path is empty
+    path_suffix = f"/{path}" if path else ""
+    mcp_url = f"http://127.0.0.1:8000/mcp{path_suffix}"
 
     # Forward the request to the MCP server
     if request.method == 'OPTIONS':
@@ -39,13 +42,28 @@ def proxy_mcp(path=''):
         return response
 
     elif request.method in ['GET', 'POST']:
+        # Build URL with query string if present
+        if request.args:
+            query_string = urlencode(request.args)
+            full_url = f"{mcp_url}?{query_string}"
+        else:
+            full_url = mcp_url
+
+        # Filter headers to avoid protocol issues
+        # Remove headers that could cause SSL/protocol upgrades
+        filtered_headers = {}
+        skip_headers = {'Host', 'X-Forwarded-Proto', 'X-Forwarded-Host',
+                       'X-Forwarded-For', 'X-Forwarded-Port', 'Forwarded'}
+        for key, value in request.headers:
+            if key not in skip_headers:
+                filtered_headers[key] = value
+
         # Forward GET/POST requests
         resp = requests.request(
             method=request.method,
-            url=mcp_url,
-            headers={key: value for (key, value) in request.headers if key != 'Host'},
+            url=full_url,
+            headers=filtered_headers,
             data=request.get_data(),
-            params=request.args,
             timeout=30
         )
 
