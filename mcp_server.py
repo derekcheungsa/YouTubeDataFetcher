@@ -11,9 +11,49 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 from starlette.middleware import Middleware
 import re
+import time
+import hashlib
+import json
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Any, Dict, Callable
 from app import get_unified_video_data, get_comments_for_video, is_valid_video_id, search_youtube_videos, get_channel_info, get_channel_uploads
+
+
+# ============================================================================
+# Simple in-memory cache for MCP tool results
+# ============================================================================
+
+_mcp_cache = {}
+_cache_ttl = 3600  # Cache results for 1 hour
+
+
+def _cache_key(tool_name: str, **kwargs) -> str:
+    """Generate a cache key from tool name and arguments."""
+    key_data = {"tool": tool_name, "args": sorted(kwargs.items())}
+    key_str = json.dumps(key_data, sort_keys=True)
+    return hashlib.md5(key_str.encode()).hexdigest()
+
+
+def _cache_get(tool_name: str, **kwargs) -> Optional[Any]:
+    """Get cached result if available and not expired."""
+    key = _cache_key(tool_name, **kwargs)
+    if key in _mcp_cache:
+        cached = _mcp_cache[key]
+        if time.time() - cached["timestamp"] < _cache_ttl:
+            return cached["data"]
+        else:
+            # Expired, remove it
+            del _mcp_cache[key]
+    return None
+
+
+def _cache_set(tool_name: str, data: Any, **kwargs):
+    """Cache a result with current timestamp."""
+    key = _cache_key(tool_name, **kwargs)
+    _mcp_cache[key] = {
+        "data": data,
+        "timestamp": time.time()
+    }
 
 
 class N8NParameterFilterMiddleware:
@@ -184,6 +224,11 @@ def analyze_video(inputs: AnalyzeVideoInput) -> dict:
     # Extract video_url_or_id from inputs (ignores extra n8n parameters)
     video_url_or_id = inputs.video_url_or_id
 
+    # Check cache first
+    cached = _cache_get("analyze_video", video_url_or_id=video_url_or_id)
+    if cached is not None:
+        return cached
+
     # Extract and validate video ID
     try:
         video_id = extract_video_id(video_url_or_id)
@@ -257,6 +302,9 @@ def analyze_video(inputs: AnalyzeVideoInput) -> dict:
     if not has_any_data:
         result['success'] = False
 
+    # Cache the result
+    _cache_set("analyze_video", result, video_url_or_id=video_url_or_id)
+
     return result
 
 
@@ -290,6 +338,11 @@ def search_youtube_content(inputs: SearchYouTubeContentInput) -> dict:
     # Extract parameters from inputs (ignores extra n8n parameters)
     query = inputs.query
     max_results = inputs.max_results or 10
+
+    # Check cache first
+    cached = _cache_get("search_youtube_content", query=query, max_results=max_results)
+    if cached is not None:
+        return cached
 
     # Validate max_results parameter
     try:
@@ -333,6 +386,9 @@ def search_youtube_content(inputs: SearchYouTubeContentInput) -> dict:
             result['error'] = 'YouTube API quota exceeded. The Search API is expensive (100 units per request).'
         else:
             result['error'] = f'Search failed: {error_msg}'
+
+    # Cache the result
+    _cache_set("search_youtube_content", result, query=query, max_results=max_results)
 
     return result
 
@@ -422,6 +478,11 @@ def get_channel_overview(inputs: GetChannelOverviewInput) -> dict:
     channel_url_or_id = inputs.channel_url_or_id
     max_uploads = inputs.max_uploads or 10
 
+    # Check cache first
+    cached = _cache_get("get_channel_overview", channel_url_or_id=channel_url_or_id, max_uploads=max_uploads)
+    if cached is not None:
+        return cached
+
     # Validate and clamp max_uploads parameter
     try:
         max_uploads = int(max_uploads)
@@ -479,6 +540,9 @@ def get_channel_overview(inputs: GetChannelOverviewInput) -> dict:
         else:
             result['error'] = f'Channel info fetched, but uploads failed: {error_msg}'
         # Keep success=True since we got channel data
+
+    # Cache the result
+    _cache_set("get_channel_overview", result, channel_url_or_id=channel_url_or_id, max_uploads=max_uploads)
 
     return result
 
